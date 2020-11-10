@@ -37,7 +37,9 @@ class Game_state():
         self.move_piece = {"p":self.get_pawn_moves, "r":self.get_rook_moves, \
                         "q":self.get_queen_moves, "k":self.get_king_moves, \
                         "b":self.get_bishop_moves, "n":self.get_knight_moves}
-
+        self.current_castling_right = Castle_rights(True, True, True, True) #keep track of current castling rights
+        self.castle_rights_log = [Castle_rights(self.current_castling_right.lks, self.current_castling_right.dqs, \
+                                                 self.current_castling_right.lqs, self.current_castling_right.dqs)]
 
     def get_pawn_moves(self, r, c, moves):
         """
@@ -207,6 +209,11 @@ class Game_state():
                 destination = self.board[end_row][end_col]
                 if destination[1] == enemy_color or destination == "  ":
                     moves.append(Move((r, c), (end_row, end_col), self.board))
+        self.get_castle_moves(r, c, moves, enemy_color)
+
+
+    def get_castle_moves(self, r, c, moves, enemy_color):
+        
 
             
 
@@ -313,6 +320,11 @@ class Game_state():
         self.move_log.append(move) # log move
         self.light_to_move = not self.light_to_move # next player to move
 
+        #update castling rights-whenever its a rook or king's move
+        self.update_castle_rights(move)
+        self.castle_rights_log.append(Castle_rights(self.current_castling_right.lks, self.current_castling_right.dqs, \
+                                                 self.current_castling_right.lqs, self.current_castling_right.dqs))
+
 
     def undo_move(self, look_ahead_mode = False):
         """
@@ -325,8 +337,35 @@ class Game_state():
             self.light_to_move = not self.light_to_move
 
             print("undoing ->", last_move.get_chess_notation())
+            #undo castling_rights
+            self.castle_rights_log.pop() # get rid of new castle rights from the move we are undoing
+            self.current_castling_right = self.castle_rights_log[-1] # set current castle rights to last one in the list
         else:
             print("All undone!")
+
+    def update_castle_rights(self, move):
+        '''
+        Update the castle rights given the move
+        '''
+        if move.piece_moved == 'kl':
+            self.current_castling_right.lks = False
+            self.current_castling_right.lqs = False
+        elif move.piece_moved == 'kd':
+            self.current_castling_right.dks = False
+            self.current_castling_right.dqs = False
+        elif move.piece_moved == 'rl':
+            if move.start_row == 7:
+                if move.start_col == 0: #left light rook
+                    self.current_castling_right.lqs = False
+                elif move.start_col == 7: #right light rook
+                    self.current_castling_right.lks = False
+        elif move.piece_moved == 'rd':
+            if move.start_row == 0:
+                if move.start_col == 0: #left dark rook
+                    self.current_castling_right.rqs = False
+                elif move.start_col == 7: #right dark rook
+                    self.current_castling_right.rks = False
+
 
 
     def get_valid_moves(self):
@@ -345,8 +384,19 @@ class Game_state():
                     self.move_piece[self.board[i][j][0]](i, j, moves)
 
         return moves, turn
+#Initializes Castle rights
 
 
+class Castle_rights():
+    def __init__(self, lks, dks, lqs, dqs):
+
+        '''
+            Initializes the castling rights of light and dark castling sides 
+        '''
+        self.lks = lks
+        self.dks = dks
+        self.lqs = lqs
+        self.dqs = dqs
 
 class Move():
 
