@@ -40,7 +40,8 @@ class Game_state():
         self.current_castling_right = Castle_rights(True, True, True, True) #keep track of current castling rights
         self.castle_rights_log = [Castle_rights(self.current_castling_right.lks, self.current_castling_right.dqs, \
                                                  self.current_castling_right.lqs, self.current_castling_right.dqs)]
-
+        self.light_king_location = (7, 4)
+        self.dark_king_location = (0, 4)
     def get_pawn_moves(self, r, c, moves):
         """
             Calculates all possible pawn moves for a given color (light or dark)
@@ -209,11 +210,62 @@ class Game_state():
                 destination = self.board[end_row][end_col]
                 if destination[1] == enemy_color or destination == "  ":
                     moves.append(Move((r, c), (end_row, end_col), self.board))
-        self.get_castle_moves(r, c, moves, enemy_color)
 
 
-    def get_castle_moves(self, r, c, moves, enemy_color):
+    def get_castle_moves(self, r, c, moves):
+        '''
+        Generate all valid castle moves for king and add to list of moves
+        '''
+        #condition no.1 for a king to castle
+        if self.square_under_attack(r, c, moves):
+            return # can't castle when in check
+
+        #condition no.2 for a king to castle: if squares on the king castling side or queen castling side are free
+        if (self.light_to_move and self.current_castling_right.lks) or (not self.light_to_move and self.current_castling_right.dks):
+            self.get_king_side_castle_moves(r, c, moves)
         
+        if (self.light_to_move and self.current_castling_right.lqs) or (not self.light_to_move and self.current_castling_right.dqs):
+            self.queen_side_castle_moves(r, c, moves)
+        
+    
+    def get_king_side_castle_moves(self, r, c, moves):
+        '''
+        This function checks whether the squares for a king side castle are empty and not under attack
+        '''
+        if self.board[r][c+1] == "  " and self.board[r][c+2] == "  ":
+            if not self.square_under_attack(r, c+1) and not self.square_under_attack(r, c+2):
+                moves.append(Move(r, c), (end_row, end_col), self.board, is_castle_move = True)
+
+
+    def queen_side_castle_moves(self, r, c, moves):
+        '''
+        This function checks whether the squares on the queen side castle are empty and not under attack
+        '''
+        if self.board[r][c-1] == "  " and self.board[r][c-2] == "  " and self.board[r][c-3] == "  ":
+            if not self.square_under_attack(r, c-1) and not self.square_under_attack(r, c-2):
+                moves.append(Move(r, c), (end_row, end_col), self.board, is_castle_move = True)
+
+    def king_in_check(self):
+
+        '''
+        determine if current player is in check
+        '''
+        if self.light_to_move:
+            return self.square_under_attack(self.light_king_location[0], self.light_king_location[1])
+        else:
+            return self.square_under_attack(self.dark_king_location[0], self.dark_king_location[1])
+
+    def square_under_attack(self, r, c, moves):
+        '''
+        determine if enemy can attack the square
+        '''
+        self.light_to_move = not self.light_to_move # switch turns
+        opp_moves = self.get_possible_moves()
+        self.light_to_move = not self.light_to_move # switch back turns
+        for move in opp_moves:
+            if move.end_row == r and move.end_col == c: # square is under attack
+                return True
+        return False
 
             
 
@@ -319,6 +371,21 @@ class Game_state():
         self.board[move.end_row][move.end_col] = move.piece_moved
         self.move_log.append(move) # log move
         self.light_to_move = not self.light_to_move # next player to move
+        # update king's location
+        if move.piece_moved == 'lk':
+            self.light_king_location = (move.end_row, move.end_col)
+        elif move.piece_moved == 'dk':
+            self.dark_king_location = (move.end_row, move.end_col)
+        #castle move
+        if move.is_castle_move:
+            #check if rook moved right or left
+            if move.end_col - move.start_col == 2: # means king side castle
+                self.board[move.end_row][move.end_col - 1] = self.board[move.end_row][move.end_row + 1] #moves the rook
+                self.board[move.end_row][move.end_col + 1] = "  " # erase old rook
+            else: # queen side castle
+                self.board[move.end_row][move.end_col + 1] = self.board[move.end_row][move.end_col - 2] # moves the rook
+                self.board[move.end_row][move.end_col - 2] = "  " #erase old rook
+
 
         #update castling rights-whenever its a rook or king's move
         self.update_castle_rights(move)
@@ -337,9 +404,25 @@ class Game_state():
             self.light_to_move = not self.light_to_move
 
             print("undoing ->", last_move.get_chess_notation())
+            #update kings location
+            if move.piece_moved == 'lk':
+                self.light_king_location = (move.start_row, move.start_col)
+            elif move.piece_moved == 'dk':
+                self.dark_king_location = (move.start_row, move.start_col)
             #undo castling_rights
             self.castle_rights_log.pop() # get rid of new castle rights from the move we are undoing
             self.current_castling_right = self.castle_rights_log[-1] # set current castle rights to last one in the list
+            #undo castle_move
+            if move.is_castle_move: 
+                if move.end_col - move.start_col == 2: #kingside
+                    self.board[move.end_row][move.end_row + 1] = self.board[move.end_row][move.end_col - 1]
+                    self.board[move.end_row][move.end_col - 1] = "  " #undo move and make previous pos empty
+                else: #queenside
+                    self.board[move.end_row][move.end_col - 2] = self.board[move.end_row][move.end_col + 1]
+                    self.board[move.end_row][move.end_col + 1] = "  "  #undo move and make previous pos empty
+
+
+
         else:
             print("All undone!")
 
@@ -369,7 +452,16 @@ class Game_state():
 
 
     def get_valid_moves(self):
-        return self.get_possible_moves()
+        temp_castle_rights = Castle_rights(self.current_castling_right.lks, self.current_castling_right.dks,\
+                                            self.current_castling_right.lqs, self.current_castling_right.dqs) #copies current castling rights temporarily to save state
+        moves = self.get_possible_moves()
+        if self.light_to_move:
+            self.get_castle_moves(self.light_king_location[0], self.light_king_location[1], moves)
+        else:
+            self.get_castle_moves(self.dark_king_location[0], self.dark_king_location[1], moves)
+            self.current_castling_right = temp_castle_rights
+        return moves
+
 
 
     def get_possible_moves(self):
@@ -384,9 +476,9 @@ class Game_state():
                     self.move_piece[self.board[i][j][0]](i, j, moves)
 
         return moves, turn
+
+
 #Initializes Castle rights
-
-
 class Castle_rights():
     def __init__(self, lks, dks, lqs, dqs):
 
@@ -414,7 +506,7 @@ class Move():
     # map columns to files (revers of files to columns)
     cols_to_files = {col:file for file, col in files_to_cols.items()}
 
-    def __init__(self, start_sq, end_sq, board):
+    def __init__(self, start_sq, end_sq, board, is_castle_move = False):
         """
             A Move class abstracting all parameters needed
             for moving chess pieces on the board
@@ -430,6 +522,7 @@ class Move():
         self.end_col = end_sq[1] # intended column destiantion of piece to e moved
         self.piece_moved = board[self.start_row][self.start_col] # actual piece moved
         self.piece_captured = board[self.end_row][self.end_col] # opponent piece if any on the destination square
+        self.is_castle_move = is_castle_move # castle move
 
     def get_chess_notation(self):
         """
