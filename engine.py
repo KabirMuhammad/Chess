@@ -38,6 +38,8 @@ class Game_state():
                         "q":self.get_queen_moves, "k":self.get_king_moves, \
                         "b":self.get_bishop_moves, "n":self.get_knight_moves}
         self.king_pos = {"kl":(7,4), "kd":(0,4)} # light king and Dark King starting row and column
+        self.light_king_pos = self.king_pos["kl"]
+        self.dark_king_pos = self.king_pos["kd"]
         self.check_mate = False # setting checkmate false
         self.stale_mate = False #setting
         self.current_castling_right = Castle_rights(True, True, True, True) #keep track of current castle rights 
@@ -494,9 +496,9 @@ class Game_state():
         # passing in two varibles moves and turns because it returns 2
         moves, turn = self.get_possible_moves()
         if self.light_to_move:
-            self.get_castle_moves(self.king_pos['kl'], self.king_pos['kl'], moves)
+            self.get_castle_moves(self.light_king_pos[0], self.light_king_pos[1], moves)
         else:
-            self.get_castle_moves(self.king_pos['kd'], self.king_pos['kd'], moves)
+            self.get_castle_moves(self.dark_king_pos[0], self.dark_king_pos[1], moves)
         # iterating the index of the moves from the last to 1st because we will
         #be removing moves which will skip moves if iterated from 1st to last
         for i in range(len(moves)-1,-1,-1):
