@@ -42,97 +42,108 @@ def main():
 
 	square_selected = () # x, y coordinate of selected square
 	player_clicks = [] # list of appended square_selected
-	valid_moves = []
-	game_over = False
+	valid_moves, first_click_turn = gs.get_valid_moves() # compute valid moves outside loop (for efficiency)
+	game_over = False # signals end of game
+	user_prompt = False # pauses gui rendering for user input
 	while running:
 
-		valid_moves, first_click_turn = gs.get_valid_moves()
+		if not user_prompt:
+			found = False
 
-		for e in pg.event.get():
-			if e.type == pg.QUIT:
-				running = False
+			for e in pg.event.get():
+				if e.type == pg.QUIT:
+					running = False
 
-			elif e.type == pg.KEYDOWN:
-				if e.key == pg.K_u: # u key pressed (undo last move)
-					gs.undo_move()
-					print(gs.undo_text) #print an undo message
+				elif e.type == pg.KEYDOWN:
+					if e.key == pg.K_u: # u key pressed (undo last move)
+						gs.undo_move()
+						valid_moves, first_click_turn = gs.get_valid_moves()
 
-				elif e.key == pg.K_r: # r key pressed (reset game)
-					gs = Game_state()
-					valid_moves, turn = [], None
-					square_selected = ()
-					player_clicks = []
-					print("Board reset!")
-
-			elif e.type == pg.MOUSEBUTTONDOWN:
-				location = pg.mouse.get_pos() # x, y location of mouse click
-				location_col_transform = location[0] // SQ_SIZE - 1
-				location_row_transform = location[1] // SQ_SIZE - 1
-				col = (location_col_transform) if (0 <= location_col_transform < 8) else -1
-				row = (location_row_transform) if (0 <= location_row_transform < 8) else -1
-
-				if col >= 0 and row >= 0:
-
-					if square_selected == (row, col): # clicked same position twice
+					elif e.key == pg.K_r: # r key pressed (reset game)
+						gs = Game_state()
+						valid_moves, turn = [], None
 						square_selected = ()
 						player_clicks = []
-
-					else: # new position clicked (destination)
-						square_selected = (row, col)
-						player_clicks.append(square_selected)
-
-					if len(player_clicks) == 2: # 'from' and 'to' are available
-						move = Move(player_clicks[0], player_clicks[1], gs.board) # create move object
-						en_passant_move = Move(player_clicks[0], player_clicks[1], gs.board, move_type="en_passant") # create move object
-
-						if move in valid_moves:
-
-							gs.make_move(move)
-							animate(move, screen, gs.board, clock)
-
-							# Pawn Promotion
-							if (move.piece_moved == "pl" and move.end_row == 0) or (move.piece_moved == "pd" and move.end_row == 7):
-								promote_to = input("Pawn Promotion:\nInput q(Queen), r(rook), b(bishop), or n(knight) to promote: ") #we can add this to the ui later
-								promotion_options = ("q","r","b","n")
-								if promote_to in promotion_options:
-									gs.board[move.end_row][move.end_col] = promote_to + move.piece_moved[1]
-								else: #create a default queen promotion if wrong input is given
-									gs.board[move.end_row][move.end_col] = "q" + move.piece_moved[1]
-
-							print(move.get_chess_notation())
-
-							square_selected = ()
-							player_clicks = []
+						print("Board reset!")
+						valid_moves, first_click_turn = gs.get_valid_moves()
 						
-						elif en_passant_move in valid_moves:
-							
-							gs.make_move(en_passant_move)
-							animate(en_passant_move, screen, gs.board, clock)
 
-							print(en_passant_move.get_chess_notation())
-							
-							square_selected = ()
-							player_clicks = []
+				elif e.type == pg.MOUSEBUTTONDOWN:
 
-						else:
-							current_turn = "l" if gs.light_to_move else "d"
-							if current_turn == first_click_turn:
-								player_clicks = [square_selected]
+					if not game_over:
+
+						location = pg.mouse.get_pos() # x, y location of mouse click
+						location_col_transform = location[0] // SQ_SIZE - 1
+						location_row_transform = location[1] // SQ_SIZE - 1
+						col = (location_col_transform) if (0 <= location_col_transform < 8) else -1  
+						row = (location_row_transform) if (0 <= location_row_transform < 8) else -1
+
+						if col >= 0 and row >= 0:
+
+							if square_selected == (row, col): # clicked same position twice
 								square_selected = ()
-							else:
 								player_clicks = []
-								square_selected = ()
+
+							else: # new position clicked (destination)
+								square_selected = (row, col)
+								player_clicks.append(square_selected)
+							
+							if len(player_clicks) == 2: # 'from' and 'to' are available
+								move = Move(player_clicks[0], player_clicks[1], gs.board) # create move object
+									
+								for obj in range(len(valid_moves)):
+									
+									if move == valid_moves[obj]:
+										move = valid_moves[obj]
+										found = True
+									
+										gs.make_move(move)
+										
+										
+										if (move.end_row == 0 or move.end_row == 7) and (move.piece_moved[0] == "p"):
+											user_prompt = True
+											choice = ("q", "r", "b", "n")
+											promotion = ""
+											while promotion not in choice:
+												promotion = input("Promote to: q => Queen, r => Rook, b => Bishop, n => Knight\n")
+											gs.board[move.end_row][move.end_col] = promotion + move.piece_moved[1]
+											user_prompt = False
+
+										animate(move, screen, gs.board, clock)
+
+										print(move.get_chess_notation())
+										
+										square_selected = ()
+										player_clicks = []
+										valid_moves, first_click_turn = gs.get_valid_moves()
+										break
+
+								if not found: # move selected not a valid move
+
+									current_turn = "l" if gs.light_to_move else "d"
+									if current_turn == first_click_turn:
+										player_clicks = [square_selected]
+										square_selected = ()
+									else:
+										player_clicks = []
+				
+										square_selected = ()
 
 		display_game_state(screen, gs, valid_moves, player_clicks)
-		if gs.check_mate: # calling checkmate from engine to see if check is true
-			if gs.light_to_move: # if it is light turn to play
-				#calling draw_text function to display dark team wins on screen
-				draw_text(screen, "Check Mate.. Dark Team Wins")
-			else: # if it is dark turn to play
-				#calling draw_text function to display dark team wins on screen
-				draw_text(screen, "Check Mate... light Team Wins")
+
+		if gs.check_mate:
+			game_over = True
+
+			if gs.light_to_move:
+				display_text(screen, "Dark wins by checkmate")
+			else:
+				display_text(screen, "Light wins by checkmate")
+
 		elif gs.stale_mate:
-			draw_text(screen, "Stale Mate.... Draw")
+			game_over = True
+			display_text(screen, "Stalemate")
+
+
 		clock.tick(MAX_FPS)
 		pg.display.flip()
 
@@ -207,7 +218,7 @@ def highlight_square(screen, gs, valid_moves, player_clicks):
 	"""
 		colorize selected pieces and valid moves
 	"""
-	if player_clicks != []:
+	if player_clicks:
 		r, c = player_clicks[0]
 		if gs.board[r][c][1] == ("l" if gs.light_to_move else "d"):
 
@@ -223,15 +234,40 @@ def highlight_square(screen, gs, valid_moves, player_clicks):
 				if move.start_row == r and move.start_col == c:
 					screen.blit(s, (move.end_col*SQ_SIZE + BORDER//2, move.end_row*SQ_SIZE + BORDER//2))
 
+	if gs.move_log:
+		last_move = gs.move_log[-1]
+		s = pg.Surface((SQ_SIZE, SQ_SIZE))
+		s.set_alpha(90)
+		s.fill(pg.Color("blue"))
+		if  gs.board[last_move.end_row][last_move.end_col][1] == ("d" if gs.light_to_move else "l"):
+			screen.blit(s, (last_move.end_col * SQ_SIZE + BORDER // 2, last_move.end_row * SQ_SIZE + BORDER // 2))
+			screen.blit(s, (last_move.start_col * SQ_SIZE + BORDER // 2, last_move.start_row * SQ_SIZE + BORDER // 2))
+
 
 def play_sound(move):
 	"""
 		plays move and captured sounds
 	"""
-	if move.piece_captured == "  ":
+	#print("sound"+str(move.en_passant_captured))
+	if move.en_passant_captured:
+		pg.mixer.Sound.play(SOUND[1])
+	elif move.piece_captured == "  ":
 		pg.mixer.Sound.play(SOUND[0])
+	
 	else:
 		pg.mixer.Sound.play(SOUND[1])
+
+
+def display_text(screen, text):
+
+	font = pg.font.SysFont("Helvetica", 32, True, False)
+	text_object = font.render(text, 0, pg.Color("Gray"))
+
+	text_location = pg.Rect(0, 0, WIDTH+BORDER, HEIGHT+BORDER).move((WIDTH+BORDER)//2 - text_object.get_width()/2, (HEIGHT+BORDER)//2 - text_object.get_height()/2)
+	screen.blit(text_object, text_location)
+
+	text_object = font.render(text, 0, pg.Color("Black"))
+	screen.blit(text_object, text_location.move(2, 2))
 
 
 def animate(move, screen, board, clock):
