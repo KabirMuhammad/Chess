@@ -512,6 +512,9 @@ class Game_state():
 			# interactive
 			if not look_ahead_mode:
 				print("undoing ->", last_move.get_chess_notation())
+			
+			#last_move.piece_captured = "  "
+
 		else:
 			print("All undone!")
 
@@ -529,6 +532,7 @@ class Game_state():
 		"""
 
 		moves, turn = self.get_possible_moves()
+		in_check = False
 		for move in moves[::-1]: # reverse iteration
 			self.make_move(move, True)
 			self.light_to_move = not self.light_to_move
@@ -643,7 +647,7 @@ class Game_state():
 						break
 
 					elif (i == 1) and (self.board[end_row][end_col][1] == opp_turn) and (self.board[end_row][end_col][0] == "k"):
-						break
+						return True
 
 					elif self.board[end_row][end_col][1] == opp_turn:
 						if self.board[end_row][end_col][0] == "b" or self.board[end_row][end_col][0] == "q":
@@ -663,7 +667,7 @@ class Game_state():
 						break
 
 					elif (i == 1) and (self.board[end_row][end_col][1] == opp_turn) and (self.board[end_row][end_col][0] == "k"):
-						break
+						return True
 
 					elif (self.board[end_row][end_col][1] == opp_turn):
 						if self.board[end_row][end_col][0] == "r" or self.board[end_row][end_col][0] == "q":
@@ -672,6 +676,35 @@ class Game_state():
 							break
 
 		return False
+	
+
+	def copy(self):
+		"""
+			create a copy of the Game_state object
+
+			input parameter(s):
+			None
+			
+			return parameter(s):
+			gs --> Game_state Object
+		"""
+		gs = Game_state()
+		gs.board = self.board
+		gs.light_to_move = self.light_to_move
+		gs.move_log = self.move_log
+		gs.en_passant = self.en_passant
+		gs.castling = self.castling
+		gs.move_piece = self.move_piece
+		gs.light_king_location =  self.light_king_location
+		gs.dark_king_location  =  self.dark_king_location
+		gs.check_mate = self.check_mate
+		gs.stale_mate = self.stale_mate
+		gs.light_king_side_castle = self.light_king_side_castle
+		gs.light_queen_side_castle = self.light_queen_side_castle
+		gs.dark_king_side_castle = self.dark_king_side_castle
+		gs.dark_queen_side_castle = self.dark_queen_side_castle
+
+		return gs
 
 
 
