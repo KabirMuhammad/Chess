@@ -537,14 +537,15 @@ class Game_state():
 			self.make_move(move, True)
 			self.light_to_move = not self.light_to_move
 			in_check = self.is_in_check()
-			if in_check:
+			if self.is_in_check() :
 				moves.remove(move)
 			self.undo_move(True)
 			self.light_to_move = not self.light_to_move
+			
 
-		if in_check and len(moves) == 0:
+		if self.is_in_check() and len(moves) == 0:
 			self.check_mate = True
-		elif not in_check and len(moves) == 0:
+		elif not self.is_in_check() and len(moves) == 0:
 			self.stale_mate = True
 			
 			# handles undoing
