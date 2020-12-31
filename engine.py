@@ -3,11 +3,11 @@
 
 class Game_state():
 	
-    def __init__(self):
-        """
-            The chess board is an 8 X 8 dimensional array (Matrix of 8 rows and 8 columns )
-            i.e a list of lists. Each element of the Matrix is a string of two characters
-            representing the chess pieces in the order "type" + "colour"
+	def __init__(self):
+		"""
+			The chess board is an 8 X 8 dimensional array (Matrix of 8 rows and 8 columns )
+			i.e a list of lists. Each element of the Matrix is a string of two characters
+			representing the chess pieces in the order "type" + "colour"
 
 			light pawn = pl
 			dark pawn  = pd
@@ -20,7 +20,7 @@ class Game_state():
 
 		"""
 
-        self.board = [
+		self.board = [
 
 			["rd", "nd", "bd", "qd", "kd", "bd", "nd", "rd"],
 			["pd", "pd", "pd", "pd", "pd", "pd", "pd", "pd"],
@@ -33,8 +33,8 @@ class Game_state():
 
 		self.light_to_move = True # True = light's turn to play; False = dark's turn to play
 		self.move_log = []        # keeps a log of all moves made withing a game
-		self.en_passant = [] 	  # flags possible en-passant moves
-		self.castling = [] 		  # flags possible casling moves
+		self.en_passant = []      # flags possible en-passant moves
+		self.castling = []        # flags possible casling moves
 		self.move_piece = {"p":self.get_pawn_moves, "r":self.get_rook_moves, \
 						"q":self.get_queen_moves, "k":self.get_king_moves, \
 						"b":self.get_bishop_moves, "n":self.get_knight_moves}
